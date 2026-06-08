@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>화학 극성 & 무극성 시뮬레이터</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts: SF Pro 느낌을 살리기 위해 Outfit과 Noto Sans KR 사용 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 배경 데코레이션 블러 서클 (Apple 깊이감 표현) -->
+        <div class="bg-glow bg-glow-1"></div>
+        <div class="bg-glow bg-glow-2"></div>
+
+        <header>
+            <div class="logo">
+                <!-- SVG Icon instead of Emoji -->
+                <svg class="logo-svg" viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="6" y1="3" x2="18" y2="3"></line>
+                    <line x1="12" y1="3" x2="12" y2="18"></line>
+                    <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"></path>
+                </svg>
+                <h1>Polarity & Nonpolar Simulator</h1>
+            </div>
+            <p class="subtitle">전기음성도 조작을 통한 화학적 극성의 직관적 이해</p>
+        </header>
+
+        <main class="main-content">
+            <!-- 왼쪽: 시뮬레이션 캔버스 영역 -->
+            <section class="visualizer-card glass-panel">
+                <!-- 전기장 극판 표시 -->
+                <div class="electric-plate plate-top" id="plateTop">
+                    <span class="plate-label">Electric Field OFF</span>
+                </div>
+                
+                <canvas id="polarCanvas"></canvas>
+                
+                <div class="electric-plate plate-bottom" id="plateBottom">
+                    <span class="plate-label">Electric Field OFF</span>
+                </div>
+
+                <div class="canvas-tip">
+                    <span>분자를 드래그하여 회전시키거나 튕겨보세요.</span>
+                </div>
+            </section>
+
+            <!-- 오른쪽: 컨트롤러 및 상태 패널 -->
+            <section class="control-panel">
+                <!-- 1. 분자 유형 선택 -->
+                <div class="control-card glass-panel">
+                    <h2>1. 분자 구조 선택</h2>
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" id="btnDiatomic" onclick="setMoleculeType('diatomic')">
+                            <span class="btn-title">이원자 분자</span>
+                            <span class="btn-desc">A — B 형</span>
+                        </button>
+                        <button class="tab-btn" id="btnTriatomic" onclick="setMoleculeType('triatomic')">
+                            <span class="btn-title">삼원자 분자</span>
+                            <span class="btn-desc">A — B — A 형 (굽은형)</span>
+                        </button>
+                        <button class="tab-btn" id="btnTriangular" onclick="setMoleculeType('triangular')">
+                            <span class="btn-title">사원자 분자</span>
+                            <span class="btn-desc">AB3 형 (평면삼각형)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. 전기음성도 조작 슬라이더 -->
+                <div class="control-card glass-panel">
+                    <div class="control-header-row">
+                        <h2>2. 전기음성도 조절</h2>
+                        <!-- 삼원자/사원자일 때 나타나는 일괄 조절 스위치 -->
+                        <div class="sync-control-container" id="syncContainer">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="chkSyncAtoms" checked onchange="toggleSyncAtoms()">
+                                <span class="checkmark"></span>
+                                <span class="checkbox-label">주변 원자 일괄 조절</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 중앙 원자 B 조절 (모든 분자 공통) -->
+                    <div class="slider-group" id="groupAtomB">
+                        <div class="slider-info">
+                            <span class="atom-badge badge-b">중앙 원자 B</span>
+                            <span class="electronegativity-value" id="valB">2.5</span>
+                        </div>
+                        <input type="range" id="slideB" min="0.5" max="4.0" step="0.1" value="2.5" oninput="updateElectronegativity()">
+                        <div class="slider-ticks">
+                            <span>0.5 (약함)</span>
+                            <span>2.5</span>
+                            <span>4.0 (강함)</span>
+                        </div>
+                    </div>
+
+                    <!-- 원자 A 조절 (이원자용 또는 삼원자/사원자 일괄 조절용) -->
+                    <div class="slider-group" id="groupAtomA">
+                        <div class="slider-info">
+                            <span class="atom-badge badge-a" id="lblAtomA">원자 A</span>
+                            <span class="electronegativity-value" id="valA">2.5</span>
+                        </div>
+                        <input type="range" id="slideA" min="0.5" max="4.0" step="0.1" value="2.5" oninput="updateElectronegativity()">
+                        <div class="slider-ticks">
+                            <span>0.5 (약함)</span>
+                            <span>2.5</span>
+                            <span>4.0 (강함)</span>
+                        </div>
+                    </div>
+
+                    <!-- 개별 원자 A2 조절 슬라이더 (삼원자/사원자에서 동기화 해제 시 노출) -->
+                    <div class="slider-group hidden" id="groupAtomA2">
+                        <div class="slider-info">
+                            <span class="atom-badge badge-a">주변 원자 A2</span>
+                            <span class="electronegativity-value" id="valA2">2.5</span>
+                        </div>
+                        <input type="range" id="slideA2" min="0.5" max="4.0" step="0.1" value="2.5" oninput="updateElectronegativity()">
+                        <div class="slider-ticks">
+                            <span>0.5 (약함)</span>
+                            <span>2.5</span>
+                            <span>4.0 (강함)</span>
+                        </div>
+                    </div>
+
+                    <!-- 개별 원자 A3 조절 슬라이더 (사원자에서 동기화 해제 시 노출) -->
+                    <div class="slider-group hidden" id="groupAtomA3">
+                        <div class="slider-info">
+                            <span class="atom-badge badge-a">주변 원자 A3</span>
+                            <span class="electronegativity-value" id="valA3">2.5</span>
+                        </div>
+                        <input type="range" id="slideA3" min="0.5" max="4.0" step="0.1" value="2.5" oninput="updateElectronegativity()">
+                        <div class="slider-ticks">
+                            <span>0.5 (약함)</span>
+                            <span>2.5</span>
+                            <span>4.0 (강함)</span>
+                        </div>
+                    </div>
+
+                    <!-- 삼원자 분자 결합각 조절 (삼원자일 때만 표시) -->
+                    <div class="slider-group hidden" id="groupAngle">
+                        <div class="slider-info">
+                            <span class="atom-badge badge-angle">결합 각도</span>
+                            <span class="electronegativity-value" id="valAngle">120°</span>
+                        </div>
+                        <input type="range" id="slideAngle" min="90" max="180" step="5" value="120" oninput="updateAngle()">
+                        <div class="slider-ticks">
+                            <span>90° (굽은형)</span>
+                            <span>135°</span>
+                            <span>180° (선형)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 외부 전기장 스위치 -->
+                <div class="control-card glass-panel">
+                    <div class="switch-row">
+                        <div class="switch-info">
+                            <h2>3. 외부 전기장 스위치</h2>
+                            <p class="switch-desc">균일한 정전기장을 걸어 분자 배열을 관찰합니다.</p>
+                        </div>
+                        <label class="switch-container">
+                            <input type="checkbox" id="switchElectricField" onchange="toggleElectricField()">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 4. 실시간 판정 모니터 -->
+                <div class="control-card glass-panel status-monitor">
+                    <h2>4. 분석 결과</h2>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <span class="status-label">최대 전기음성도 차이 (ΔEN)</span>
+                            <span class="status-val font-numeric" id="infoENDiff">0.0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">합성 쌍극자 모멘트 (μ)</span>
+                            <span class="status-val font-numeric" id="infoDipole">0.00 D</span>
+                        </div>
+                    </div>
+                    <div class="polarity-result" id="polarityBadge">
+                        무극성 분자 (Nonpolar)
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>화학 교육 시뮬레이션 프로젝트 • Apple Design System Inspiration</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
+/* -------------------------------------------------------------
+ * 1. Global Reset & Apple Design Tokens
+ * ------------------------------------------------------------- */
+:root {
+    --bg-dark: #000000; /* Apple Pure Black */
+    --card-bg: rgba(25, 25, 27, 0.65); /* Translucent dark surface */
+    --card-border: rgba(255, 255, 255, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.64);
+    --text-tertiary: rgba(255, 255, 255, 0.48);
+    
+    /* Interactive & Accent */
+    --apple-blue: #0071e3; /* Main active color */
+    --link-blue: #2997ff; /* Higher luminance for dark surfaces */
+    
+    /* Polarity Representation (Desaturated & Soft for high fidelity) */
+    --color-delta-plus: #00e5ff;
+    --color-delta-minus: #ff5a5f;
+    --color-neutral: #a5b4fc;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    letter-spacing: -0.022em; /* Apple universally tracks tight */
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: 'Outfit', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* -------------------------------------------------------------
+ * 2. Background Depth (Blur and Glows)
+ * ------------------------------------------------------------- */
+.bg-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(140px);
+    z-index: -1;
+    opacity: 0.12;
+    pointer-events: none;
+}
+
+.bg-glow-1 {
+    width: 600px;
+    height: 600px;
+    background: var(--apple-blue);
+    top: -200px;
+    left: -150px;
+}
+
+.bg-glow-2 {
+    width: 600px;
+    height: 600px;
+    background: var(--color-delta-minus);
+    bottom: -200px;
+    right: -150px;
+}
+
+/* -------------------------------------------------------------
+ * 3. Layout (Full-viewport Canvas)
+ * ------------------------------------------------------------- */
+.app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-primary);
+}
+
+.logo-svg {
+    stroke: var(--link-blue);
+    filter: drop-shadow(0 0 8px rgba(41, 151, 255, 0.4));
+}
+
+header h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.07; /* Tight headline line-height */
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+    font-weight: 400;
+}
+
+.main-content {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+@media (max-width: 1024px) {
+    .main-content {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* -------------------------------------------------------------
+ * 4. Surface (Glassmorphism & Shadows)
+ * ------------------------------------------------------------- */
+.glass-panel {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* -------------------------------------------------------------
+ * 5. Visualizer Card (Canvas & Plates)
+ * ------------------------------------------------------------- */
+.visualizer-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    height: 600px;
+}
+
+#polarCanvas {
+    width: 100%;
+    height: 100%;
+    max-height: 460px;
+    cursor: grab;
+}
+
+#polarCanvas:active {
+    cursor: grabbing;
+}
+
+/* Electric Plates (Apple Minimal Style - No flashy borders) */
+.electric-plate {
+    width: 95%;
+    padding: 0.65rem;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: all 0.4s ease;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-tertiary);
+}
+
+.plate-top.active {
+    background: rgba(255, 90, 95, 0.1);
+    border: 1px solid rgba(255, 90, 95, 0.25);
+    color: var(--color-delta-minus);
+}
+
+.plate-bottom.active {
+    background: rgba(0, 229, 255, 0.1);
+    border: 1px solid rgba(0, 229, 255, 0.25);
+    color: var(--color-delta-plus);
+}
+
+.canvas-tip {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+}
+
+/* -------------------------------------------------------------
+ * 6. Controls
+ * ------------------------------------------------------------- */
+.control-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.control-card {
+    padding: 1.75rem;
+}
+
+.control-card h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.control-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+/* Sync Atoms Checkbox styling */
+.sync-control-container {
+    display: flex;
+    align-items: center;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    user-select: none;
+    padding-left: 24px;
+}
+
+.checkbox-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    height: 16px;
+    width: 16px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--card-border);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.checkbox-container:hover input ~ .checkmark {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.checkbox-container input:checked ~ .checkmark {
+    background-color: var(--apple-blue);
+    border-color: var(--apple-blue);
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.checkbox-container .checkmark:after {
+    left: 5px;
+    top: 2px;
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.checkbox-label {
+    margin-left: 4px;
+}
+
+/* Tab Buttons (Apple Marketing Pill System - 980px radius) */
+.tab-buttons {
+    display: flex;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 980px; /* Pill radius */
+    padding: 3px;
+    gap: 2px;
+    margin-top: 1rem;
+    border: 1px solid var(--card-border);
+}
+
+.tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-radius: 980px;
+    padding: 0.6rem 0.8rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.btn-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.btn-desc {
+    font-size: 0.7rem;
+    opacity: 0.6;
+    margin-top: 2px;
+}
+
+/* Sliders */
+.slider-group {
+    margin-top: 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.slider-group.hidden {
+    display: none;
+    opacity: 0;
+    margin-top: 0;
+}
+
+.slider-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+}
+
+.atom-badge {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+}
+
+.badge-b {
+    background: rgba(41, 151, 255, 0.15);
+    color: var(--link-blue);
+}
+
+.badge-a {
+    background: rgba(255, 90, 95, 0.12);
+    color: #ff8589;
+}
+
+.badge-angle {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.electronegativity-value {
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: monospace;
+    color: var(--text-primary);
+}
+
+input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.1);
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ffffff;
+    cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    transition: transform 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+
+.slider-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    margin-top: 0.25rem;
+}
+
+/* Switch Row */
+.switch-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.switch-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    max-width: 70%;
+}
+
+.switch-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* IOS Style Toggle Switch (Apple canonical styling) */
+.switch-container {
+    position: relative;
+    display: inline-block;
+    width: 51px;
+    height: 31px;
+}
+
+.switch-container input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.12);
+    transition: .3s;
+    border-radius: 31px;
+    border: 1px solid var(--card-border);
+}
+
+.switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 27px;
+    width: 27px;
+    left: 1px;
+    bottom: 1px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+}
+
+input:checked + .switch-slider {
+    background-color: #34c759; /* Apple Green */
+}
+
+input:checked + .switch-slider:before {
+    transform: translateX(20px);
+}
+
+/* -------------------------------------------------------------
+ * 7. Results Dashboard
+ * ------------------------------------------------------------- */
+.status-monitor {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: var(--card-border);
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.status-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.status-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.status-val {
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.font-numeric {
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.01em;
+}
+
+.polarity-result {
+    padding: 0.85rem;
+    border-radius: 10px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+    transition: all 0.3s ease;
+}
+
+.polar-nonpolar {
+    background: rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.polar-polar {
+    background: rgba(0, 113, 227, 0.12);
+    color: var(--link-blue);
+    border: 1px solid rgba(0, 113, 227, 0.3);
+}
+
+/* -------------------------------------------------------------
+ * 8. Footer
+ * ------------------------------------------------------------- */
+footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+// -------------------------------------------------------------
+// 1. 설정 및 상태 정의
+// -------------------------------------------------------------
+const canvas = document.getElementById('polarCanvas');
+const ctx = canvas.getContext('2d');
+
+let moleculeType = 'diatomic'; // 'diatomic', 'triatomic', or 'triangular'
+let enA1 = 2.5; // 주변 원자 A1의 전기음성도
+let enA2 = 2.5; // 주변 원자 A2의 전기음성도
+let enA3 = 2.5; // 주변 원자 A3의 전기음성도
+let enB = 2.5;  // 중앙 원자 B의 전기음성도
+let bondAngle = 120; // 삼원자 굽은형 결합각
+let isElectricFieldOn = false;
+let isSyncEnabled = true;
+
+// 물리 모델 상태
+let angle = 0; // 분자의 전체 회전각 (라디안)
+let angularVelocity = 0; // 각속도
+let isDragging = false;
+let startDragAngle = 0;
+let prevMouseAngle = 0;
+let lastMouseTime = 0;
+
+// 색상 매핑 상수 (Vibrant Cyan ~ Gray ~ Vibrant Coral)
+const COLOR_DELTA_PLUS = { r: 0, g: 229, b: 255 };  // Cyan
+const COLOR_DELTA_MINUS = { r: 255, g: 90, b: 95 }; // Coral
+const COLOR_NEUTRAL = { r: 180, g: 188, b: 200 };    // Slate Gray
+
+// -------------------------------------------------------------
+// 2. 초기화 및 리사이즈
+// -------------------------------------------------------------
+function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * 2;
+    canvas.height = rect.height * 2;
+    ctx.scale(2, 2);
+}
+
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('load', () => {
+    resizeCanvas();
+    setMoleculeType('diatomic');
+    requestAnimationFrame(animationLoop);
+});
+
+// -------------------------------------------------------------
+// 3. UI 및 제어 함수
+// -------------------------------------------------------------
+function setMoleculeType(type) {
+    moleculeType = type;
+    
+    // 버튼 탭 활성화 갱신
+    document.getElementById('btnDiatomic').classList.toggle('active', type === 'diatomic');
+    document.getElementById('btnTriatomic').classList.toggle('active', type === 'triatomic');
+    document.getElementById('btnTriangular').classList.toggle('active', type === 'triangular');
+    
+    // UI 요소 상태 제어
+    const syncContainer = document.getElementById('syncContainer');
+    const groupAngle = document.getElementById('groupAngle');
+    const lblAtomA = document.getElementById('lblAtomA');
+    
+    if (type === 'diatomic') {
+        syncContainer.style.display = 'none';
+        groupAngle.classList.add('hidden');
+        lblAtomA.textContent = '원자 A';
+    } else if (type === 'triatomic') {
+        syncContainer.style.display = 'flex';
+        groupAngle.classList.remove('hidden');
+        lblAtomA.textContent = isSyncEnabled ? '주변 원자 A (일괄)' : '주변 원자 A1';
+    } else if (type === 'triangular') {
+        syncContainer.style.display = 'flex';
+        groupAngle.classList.add('hidden');
+        lblAtomA.textContent = isSyncEnabled ? '주변 원자 A (일괄)' : '주변 원자 A1';
+    }
+    
+    updateSliderVisibility();
+    
+    // 물리 데이터 리셋
+    angle = 0;
+    angularVelocity = 0;
+    updateElectronegativity();
+}
+
+function toggleSyncAtoms() {
+    isSyncEnabled = document.getElementById('chkSyncAtoms').checked;
+    
+    const lblAtomA = document.getElementById('lblAtomA');
+    if (moleculeType !== 'diatomic') {
+        lblAtomA.textContent = isSyncEnabled ? '주변 원자 A (일괄)' : '주변 원자 A1';
+    }
+    
+    if (isSyncEnabled) {
+        // 일괄 조동기화 시 A1의 값을 A2, A3에 복사
+        enA2 = enA1;
+        enA3 = enA1;
+        document.getElementById('slideA2').value = enA1;
+        document.getElementById('slideA3').value = enA1;
+    }
+    
+    updateSliderVisibility();
+    updateElectronegativity();
+}
+
+function updateSliderVisibility() {
+    const groupA2 = document.getElementById('groupAtomA2');
+    const groupA3 = document.getElementById('groupAtomA3');
+    
+    if (moleculeType === 'diatomic') {
+        groupA2.classList.add('hidden');
+        groupA3.classList.add('hidden');
+    } else if (moleculeType === 'triatomic') {
+        groupA2.classList.toggle('hidden', isSyncEnabled);
+        groupA3.classList.add('hidden');
+    } else if (moleculeType === 'triangular') {
+        groupA2.classList.toggle('hidden', isSyncEnabled);
+        groupA3.classList.toggle('hidden', isSyncEnabled);
+    }
+}
+
+function updateElectronegativity() {
+    enA1 = parseFloat(document.getElementById('slideA').value);
+    enB = parseFloat(document.getElementById('slideB').value);
+    
+    if (isSyncEnabled) {
+        enA2 = enA1;
+        enA3 = enA1;
+    } else {
+        enA2 = parseFloat(document.getElementById('slideA2').value);
+        enA3 = parseFloat(document.getElementById('slideA3').value);
+    }
+    
+    document.getElementById('valA').textContent = enA1.toFixed(1);
+    document.getElementById('valB').textContent = enB.toFixed(1);
+    document.getElementById('valA2').textContent = enA2.toFixed(1);
+    document.getElementById('valA3').textContent = enA3.toFixed(1);
+    
+    calculatePolarity();
+}
+
+function updateAngle() {
+    bondAngle = parseInt(document.getElementById('slideAngle').value);
+    document.getElementById('valAngle').textContent = bondAngle + '°';
+    calculatePolarity();
+}
+
+function toggleElectricField() {
+    isElectricFieldOn = document.getElementById('switchElectricField').checked;
+    
+    document.getElementById('plateTop').classList.toggle('active', isElectricFieldOn);
+    document.getElementById('plateBottom').classList.toggle('active', isElectricFieldOn);
+    
+    const topLabel = document.querySelector('.plate-top .plate-label');
+    const bottomLabel = document.querySelector('.plate-bottom .plate-label');
+    
+    if (isElectricFieldOn) {
+        topLabel.textContent = 'Electric Field Plate (+) Charged';
+        bottomLabel.textContent = 'Electric Field Plate (-) Charged';
+    } else {
+        topLabel.textContent = 'Electric Field OFF';
+        bottomLabel.textContent = 'Electric Field OFF';
+    }
+}
+
+// -------------------------------------------------------------
+// 4. 화학 극성 및 합성 벡터 연산
+// -------------------------------------------------------------
+let totalDipoleVec = { x: 0, y: 0 };
+let maxEnDiff = 0;
+let dipoleMagnitude = 0;
+
+function calculatePolarity() {
+    if (moleculeType === 'diatomic') {
+        maxEnDiff = Math.abs(enA1 - enB);
+        dipoleMagnitude = maxEnDiff * 1.5;
+        const direction = enA1 >= enB ? -1 : 1; // B가 (0,0), A1이 (-bondLength, 0)
+        totalDipoleVec = { x: direction * dipoleMagnitude, y: 0 };
+    } 
+    else if (moleculeType === 'triatomic') {
+        maxEnDiff = Math.max(Math.abs(enB - enA1), Math.abs(enB - enA2));
+        
+        // 결합 벡터 연산 (B가 원점(0,0))
+        const halfAngleRad = (bondAngle / 2) * (Math.PI / 180);
+        
+        // B에서 A1, A2로 향하는 단위 방향 벡터
+        const dir1 = { x: -Math.sin(halfAngleRad), y: Math.cos(halfAngleRad) };
+        const dir2 = { x: Math.sin(halfAngleRad), y: Math.cos(halfAngleRad) };
+        
+        // 전기음성도 차이 세기
+        const mag1 = (enA1 - enB) * 1.2;
+        const mag2 = (enA2 - enB) * 1.2;
+        
+        // 개별 결합 쌍극자 모멘트 벡터
+        const vec1 = { x: dir1.x * mag1, y: dir1.y * mag1 };
+        const vec2 = { x: dir2.x * mag2, y: dir2.y * mag2 };
+        
+        // 합성 벡터
+        totalDipoleVec = {
+            x: vec1.x + vec2.x,
+            y: vec1.y + vec2.y
+        };
+        dipoleMagnitude = Math.sqrt(totalDipoleVec.x * totalDipoleVec.x + totalDipoleVec.y * totalDipoleVec.y);
+    } 
+    else if (moleculeType === 'triangular') {
+        maxEnDiff = Math.max(Math.abs(enB - enA1), Math.abs(enB - enA2), Math.abs(enB - enA3));
+        
+        // 평면삼각형(정삼각형): B를 기준으로 세 개의 대칭축(각도: 90도, 210도, 330도)
+        const rad1 = -Math.PI / 2; // 상단 (A1)
+        const rad2 = -Math.PI / 2 + (2 * Math.PI) / 3; // 우하단 (A2)
+        const rad3 = -Math.PI / 2 + (4 * Math.PI) / 3; // 좌하단 (A3)
+        
+        const dir1 = { x: Math.cos(rad1), y: Math.sin(rad1) };
+        const dir2 = { x: Math.cos(rad2), y: Math.sin(rad2) };
+        const dir3 = { x: Math.cos(rad3), y: Math.sin(rad3) };
+        
+        const mag1 = (enA1 - enB) * 1.2;
+        const mag2 = (enA2 - enB) * 1.2;
+        const mag3 = (enA3 - enB) * 1.2;
+        
+        const vec1 = { x: dir1.x * mag1, y: dir1.y * mag1 };
+        const vec2 = { x: dir2.x * mag2, y: dir2.y * mag2 };
+        const vec3 = { x: dir3.x * mag3, y: dir3.y * mag3 };
+        
+        totalDipoleVec = {
+            x: vec1.x + vec2.x + vec3.x,
+            y: vec1.y + vec2.y + vec3.y
+        };
+        dipoleMagnitude = Math.sqrt(totalDipoleVec.x * totalDipoleVec.x + totalDipoleVec.y * totalDipoleVec.y);
+    }
+    
+    // UI 업데이트
+    document.getElementById('infoENDiff').textContent = maxEnDiff.toFixed(1);
+    document.getElementById('infoDipole').textContent = dipoleMagnitude.toFixed(2) + ' D';
+    
+    const polarityBadge = document.getElementById('polarityBadge');
+    if (dipoleMagnitude < 0.15) {
+        polarityBadge.textContent = '무극성 분자 (Nonpolar)';
+        polarityBadge.className = 'polarity-result polar-nonpolar';
+    } else {
+        polarityBadge.textContent = '극성 분자 (Polar)';
+        polarityBadge.className = 'polarity-result polar-polar';
+    }
+}
+
+// -------------------------------------------------------------
+// 5. 마우스 드래그 물리 로직
+// -------------------------------------------------------------
+function getMouseAngle(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left) - rect.width / 2;
+    const mouseY = (e.clientY - rect.top) - rect.height / 2;
+    return Math.atan2(mouseY, mouseX);
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    angularVelocity = 0;
+    const mAngle = getMouseAngle(e);
+    startDragAngle = mAngle - angle;
+    prevMouseAngle = mAngle;
+    lastMouseTime = performance.now();
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const mAngle = getMouseAngle(e);
+    angle = mAngle - startDragAngle;
+    
+    const now = performance.now();
+    const dt = (now - lastMouseTime) / 1000;
+    if (dt > 0) {
+        let diff = mAngle - prevMouseAngle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        angularVelocity = diff / dt;
+    }
+    
+    prevMouseAngle = mAngle;
+    lastMouseTime = now;
+});
+
+window.addEventListener('mouseup', () => { isDragging = false; });
+
+// -------------------------------------------------------------
+// 6. 애니메이션 프레임 루프
+// -------------------------------------------------------------
+let lastTime = 0;
+
+function animationLoop(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    let dt = (timestamp - lastTime) / 1000;
+    if (dt > 0.1) dt = 0.1;
+    lastTime = timestamp;
+
+    updatePhysics(dt);
+    draw();
+
+    requestAnimationFrame(animationLoop);
+}
+
+function updatePhysics(dt) {
+    if (isDragging) return;
+
+    // 감쇠 (Friction)
+    angularVelocity *= Math.exp(-1.5 * dt);
+
+    // 전기장 반응 토크 연산
+    if (isElectricFieldOn && dipoleMagnitude > 0.15) {
+        let internalDipoleAngle = Math.atan2(totalDipoleVec.y, totalDipoleVec.x);
+        let globalDipoleAngle = angle + internalDipoleAngle;
+        
+        let targetAngle = Math.PI / 2; // 전기장 벡터 방향 수직 아래 방향
+        let angleDiff = targetAngle - globalDipoleAngle;
+        
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        
+        const springConstant = 8.0 * dipoleMagnitude;
+        const dampingConstant = 2.0;
+        
+        const torque = springConstant * angleDiff;
+        angularVelocity += (torque - dampingConstant * angularVelocity) * dt;
+    }
+
+    angle += angularVelocity * dt;
+    while (angle < -Math.PI) angle += Math.PI * 2;
+    while (angle > Math.PI) angle -= Math.PI * 2;
+}
+
+// -------------------------------------------------------------
+// 7. 렌더링 (Canvas)
+// -------------------------------------------------------------
+function getChargeColor(enSelf, enOther) {
+    if (enSelf === enOther) return COLOR_NEUTRAL;
+    const diff = enSelf - enOther;
+    const factor = Math.max(-1, Math.min(1, diff / 2.0));
+    
+    if (factor > 0) {
+        return {
+            r: Math.round(COLOR_NEUTRAL.r + (COLOR_DELTA_MINUS.r - COLOR_NEUTRAL.r) * factor),
+            g: Math.round(COLOR_NEUTRAL.g + (COLOR_DELTA_MINUS.g - COLOR_NEUTRAL.g) * factor),
+            b: Math.round(COLOR_NEUTRAL.b + (COLOR_DELTA_MINUS.b - COLOR_NEUTRAL.b) * factor)
+        };
+    } else {
+        const absFactor = Math.abs(factor);
+        return {
+            r: Math.round(COLOR_NEUTRAL.r + (COLOR_DELTA_PLUS.r - COLOR_NEUTRAL.r) * absFactor),
+            g: Math.round(COLOR_NEUTRAL.g + (COLOR_DELTA_PLUS.g - COLOR_NEUTRAL.g) * absFactor),
+            b: Math.round(COLOR_NEUTRAL.b + (COLOR_DELTA_PLUS.b - COLOR_NEUTRAL.b) * absFactor)
+        };
+    }
+}
+
+function colorToString(c, alpha = 1) {
+    return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
+}
+
+function drawAtom(x, y, radius, color, label, chargeLabel) {
+    // 1. 외부 전자구름 그라데이션
+    const glowGrad = ctx.createRadialGradient(x, y, radius * 0.4, x, y, radius * 2.8);
+    glowGrad.addColorStop(0, colorToString(color, 0.4));
+    glowGrad.addColorStop(0.35, colorToString(color, 0.18));
+    glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 2.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. 구체 렌더링
+    const sphereGrad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, radius * 0.1, x, y, radius);
+    sphereGrad.addColorStop(0, '#ffffff');
+    sphereGrad.addColorStop(0.2, colorToString(color, 1));
+    sphereGrad.addColorStop(1, '#080c14');
+    
+    ctx.fillStyle = sphereGrad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 3. 이름 및 부분 전하 기호
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 15px Outfit, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x, y - 2);
+
+    if (chargeLabel) {
+        ctx.fillStyle = chargeLabel.includes('-') ? '#ff8589' : '#85f0ff';
+        ctx.font = '600 12px Outfit, sans-serif';
+        ctx.fillText(chargeLabel, x, y + 21);
+    }
+}
+
+function drawArrow(fromX, fromY, toX, toY, color, width = 3, arrowSize = 8) {
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.stroke();
+
+    const arrowAngle = Math.atan2(toY - fromY, toX - fromX);
+    ctx.beginPath();
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(toX - arrowSize * Math.cos(arrowAngle - Math.PI / 6), toY - arrowSize * Math.sin(arrowAngle - Math.PI / 6));
+    ctx.lineTo(toX - arrowSize * Math.cos(arrowAngle + Math.PI / 6), toY - arrowSize * Math.sin(arrowAngle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width / 2, canvas.height / 2);
+    
+    const w = canvas.width / 2;
+    const h = canvas.height / 2;
+    const centerX = w / 2;
+    const centerY = h / 2;
+
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(angle);
+
+    const bondLength = 90;
+    const atomRadius = 24;
+
+    if (moleculeType === 'diatomic') {
+        const xA = -bondLength;
+        const yA = 0;
+        const xB = 0;
+        const yB = 0;
+
+        // 결합선
+        ctx.beginPath();
+        ctx.moveTo(xA, yA);
+        ctx.lineTo(xB, yB);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        const colorA = getChargeColor(enA1, enB);
+        const colorB = getChargeColor(enB, enA1);
+
+        let chargeA = '';
+        let chargeB = '';
+        if (enA1 > enB) { chargeA = 'δ-'; chargeB = 'δ+'; }
+        else if (enB > enA1) { chargeA = 'δ+'; chargeB = 'δ-'; }
+
+        drawAtom(xA, yA, atomRadius, colorA, 'A', chargeA);
+        drawAtom(xB, yB, atomRadius, colorB, 'B', chargeB);
+
+        // 개별 결합 모멘트
+        if (dipoleMagnitude > 0.1) {
+            const fromX = enA1 < enB ? xA + 25 : xB - 25;
+            const toX = enA1 < enB ? xB - 25 : xA + 25;
+            
+            ctx.strokeStyle = 'rgba(165, 180, 252, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const crossX = fromX + (enA1 < enB ? 5 : -5);
+            ctx.moveTo(crossX, -5);
+            ctx.lineTo(crossX, 5);
+            ctx.stroke();
+
+            drawArrow(fromX, 0, toX, 0, 'rgba(165, 180, 252, 0.6)', 2.5, 7);
+        }
+    } 
+    else if (moleculeType === 'triatomic') {
+        const halfAngleRad = (bondAngle / 2) * (Math.PI / 180);
+        
+        const xA1 = -bondLength * Math.sin(halfAngleRad);
+        const yA1 = bondLength * Math.cos(halfAngleRad);
+        const xA2 = bondLength * Math.sin(halfAngleRad);
+        const yA2 = bondLength * Math.cos(halfAngleRad);
+        const xB = 0;
+        const yB = 0;
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(xA1, yA1);
+        ctx.lineTo(xB, yB);
+        ctx.lineTo(xA2, yA2);
+        ctx.stroke();
+
+        const colorA1 = getChargeColor(enA1, enB);
+        const colorA2 = getChargeColor(enA2, enB);
+        const colorB = getChargeColor(enB, (enA1 + enA2) / 2);
+
+        let chargeA1 = enA1 > enB ? 'δ-' : (enB > enA1 ? 'δ+' : '');
+        let chargeA2 = enA2 > enB ? 'δ-' : (enB > enA2 ? 'δ+' : '');
+        let chargeB = enB > (enA1 + enA2)/2 ? 'δ-' : (enB < (enA1 + enA2)/2 ? 'δ+' : '');
+
+        drawAtom(xA1, yA1, atomRadius, colorA1, 'A1', chargeA1);
+        drawAtom(xA2, yA2, atomRadius, colorA2, 'A2', chargeA2);
+        drawAtom(xB, yB, atomRadius, colorB, 'B', chargeB);
+
+        // 개별 결합 모멘트 화살표
+        const d1 = Math.abs(enA1 - enB);
+        if (d1 > 0.1) {
+            const start = enB < enA1 ? { x: xB - 15 * Math.sin(halfAngleRad), y: yB + 15 * Math.cos(halfAngleRad) } : { x: xA1 + 20 * Math.sin(halfAngleRad), y: yA1 - 20 * Math.cos(halfAngleRad) };
+            const end = enB < enA1 ? { x: xA1 + 20 * Math.sin(halfAngleRad), y: yA1 - 20 * Math.cos(halfAngleRad) } : { x: xB - 15 * Math.sin(halfAngleRad), y: yB + 15 * Math.cos(halfAngleRad) };
+            drawArrow(start.x, start.y, end.x, end.y, 'rgba(165, 180, 252, 0.6)', 2, 7);
+        }
+        const d2 = Math.abs(enA2 - enB);
+        if (d2 > 0.1) {
+            const start = enB < enA2 ? { x: xB + 15 * Math.sin(halfAngleRad), y: yB + 15 * Math.cos(halfAngleRad) } : { x: xA2 - 20 * Math.sin(halfAngleRad), y: yA2 - 20 * Math.cos(halfAngleRad) };
+            const end = enB < enA2 ? { x: xA2 - 20 * Math.sin(halfAngleRad), y: yA2 - 20 * Math.cos(halfAngleRad) } : { x: xB + 15 * Math.sin(halfAngleRad), y: yB + 15 * Math.cos(halfAngleRad) };
+            drawArrow(start.x, start.y, end.x, end.y, 'rgba(165, 180, 252, 0.6)', 2, 7);
+        }
+    } 
+    else if (moleculeType === 'triangular') {
+        // 평면삼각형 기하 구조 정의
+        const rad1 = -Math.PI / 2; // A1
+        const rad2 = -Math.PI / 2 + (2 * Math.PI) / 3; // A2
+        const rad3 = -Math.PI / 2 + (4 * Math.PI) / 3; // A3
+        
+        const xA1 = bondLength * Math.cos(rad1);
+        const yA1 = bondLength * Math.sin(rad1);
+        const xA2 = bondLength * Math.cos(rad2);
+        const yA2 = bondLength * Math.sin(rad2);
+        const xA3 = bondLength * Math.cos(rad3);
+        const yA3 = bondLength * Math.sin(rad3);
+        const xB = 0;
+        const yB = 0;
+
+        // 결합선 3개
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(xA1, yA1); ctx.lineTo(xB, yB);
+        ctx.moveTo(xA2, yA2); ctx.lineTo(xB, yB);
+        ctx.moveTo(xA3, yA3); ctx.lineTo(xB, yB);
+        ctx.stroke();
+
+        const colorA1 = getChargeColor(enA1, enB);
+        const colorA2 = getChargeColor(enA2, enB);
+        const colorA3 = getChargeColor(enA3, enB);
+        const colorB = getChargeColor(enB, (enA1 + enA2 + enA3) / 3);
+
+        let chargeA1 = enA1 > enB ? 'δ-' : (enB > enA1 ? 'δ+' : '');
+        let chargeA2 = enA2 > enB ? 'δ-' : (enB > enA2 ? 'δ+' : '');
+        let chargeA3 = enA3 > enB ? 'δ-' : (enB > enA3 ? 'δ+' : '');
+        let chargeB = enB > (enA1 + enA2 + enA3)/3 ? 'δ-' : (enB < (enA1 + enA2 + enA3)/3 ? 'δ+' : '');
+
+        drawAtom(xA1, yA1, atomRadius, colorA1, 'A1', chargeA1);
+        drawAtom(xA2, yA2, atomRadius, colorA2, 'A2', chargeA2);
+        drawAtom(xA3, yA3, atomRadius, colorA3, 'A3', chargeA3);
+        drawAtom(xB, yB, atomRadius, colorB, 'B', chargeB);
+
+        // 개별 결합 모멘트
+        const angles = [rad1, rad2, rad3];
+        const ens = [enA1, enA2, enA3];
+        for (let i = 0; i < 3; i++) {
+            const diff = Math.abs(ens[i] - enB);
+            if (diff > 0.1) {
+                const ax = bondLength * Math.cos(angles[i]);
+                const ay = bondLength * Math.sin(angles[i]);
+                
+                const start = enB < ens[i] ? { x: 15 * Math.cos(angles[i]), y: 15 * Math.sin(angles[i]) } : { x: ax - 20 * Math.cos(angles[i]), y: ay - 20 * Math.sin(angles[i]) };
+                const end = enB < ens[i] ? { x: ax - 20 * Math.cos(angles[i]), y: ay - 20 * Math.sin(angles[i]) } : { x: 15 * Math.cos(angles[i]), y: 15 * Math.sin(angles[i]) };
+                drawArrow(start.x, start.y, end.x, end.y, 'rgba(165, 180, 252, 0.6)', 2, 7);
+            }
+        }
+    }
+
+    ctx.restore();
+
+    // 8. 합성 쌍극자 모멘트 화살표 (글로벌 고정 좌표계 렌더링)
+    if (dipoleMagnitude > 0.15) {
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+        
+        const dMag = Math.sqrt(totalDipoleVec.x * totalDipoleVec.x + totalDipoleVec.y * totalDipoleVec.y);
+        const dirLocalX = totalDipoleVec.x / dMag;
+        const dirLocalY = totalDipoleVec.y / dMag;
+        
+        const dirGlobalX = dirLocalX * cosA - dirLocalY * sinA;
+        const dirGlobalY = dirLocalX * sinA + dirLocalY * cosA;
+        
+        const startX = centerX;
+        const startY = centerY;
+        const scaledVal = Math.min(130, 25 + dipoleMagnitude * 20);
+        const endX = centerX + dirGlobalX * scaledVal;
+        const endY = centerY + dirGlobalY * scaledVal;
+        
+        // 합성 십자가 꼬리(+)
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        const crossLength = 8;
+        const perpX = -dirGlobalY * crossLength;
+        const perpY = dirGlobalX * crossLength;
+        const crossStartX = startX + dirGlobalX * 10;
+        const crossStartY = startY + dirGlobalY * 10;
+        ctx.moveTo(crossStartX - perpX, crossStartY - perpY);
+        ctx.lineTo(crossStartX + perpX, crossStartY + perpY);
+        ctx.stroke();
+        
+        drawArrow(startX + dirGlobalX * 10, startY + dirGlobalY * 10, endX, endY, '#f59e0b', 4.5, 11);
+        
+        ctx.fillStyle = '#fde047';
+        ctx.font = 'italic bold 18px Outfit, sans-serif';
+        ctx.fillText('μ', endX + dirGlobalX * 15, endY + dirGlobalY * 15);
+    }
+}
