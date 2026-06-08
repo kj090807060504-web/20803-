@@ -1,0 +1,559 @@
+/* -------------------------------------------------------------
+ * 1. Global Reset & Apple Design Tokens
+ * ------------------------------------------------------------- */
+:root {
+    --bg-dark: #000000; /* Apple Pure Black */
+    --card-bg: rgba(25, 25, 27, 0.65); /* Translucent dark surface */
+    --card-border: rgba(255, 255, 255, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.64);
+    --text-tertiary: rgba(255, 255, 255, 0.48);
+    
+    /* Interactive & Accent */
+    --apple-blue: #0071e3; /* Main active color */
+    --link-blue: #2997ff; /* Higher luminance for dark surfaces */
+    
+    /* Polarity Representation (Desaturated & Soft for high fidelity) */
+    --color-delta-plus: #00e5ff;
+    --color-delta-minus: #ff5a5f;
+    --color-neutral: #a5b4fc;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    letter-spacing: -0.022em; /* Apple universally tracks tight */
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: 'Outfit', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* -------------------------------------------------------------
+ * 2. Background Depth (Blur and Glows)
+ * ------------------------------------------------------------- */
+.bg-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(140px);
+    z-index: -1;
+    opacity: 0.12;
+    pointer-events: none;
+}
+
+.bg-glow-1 {
+    width: 600px;
+    height: 600px;
+    background: var(--apple-blue);
+    top: -200px;
+    left: -150px;
+}
+
+.bg-glow-2 {
+    width: 600px;
+    height: 600px;
+    background: var(--color-delta-minus);
+    bottom: -200px;
+    right: -150px;
+}
+
+/* -------------------------------------------------------------
+ * 3. Layout (Full-viewport Canvas)
+ * ------------------------------------------------------------- */
+.app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-primary);
+}
+
+.logo-svg {
+    stroke: var(--link-blue);
+    filter: drop-shadow(0 0 8px rgba(41, 151, 255, 0.4));
+}
+
+header h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.07; /* Tight headline line-height */
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+    font-weight: 400;
+}
+
+.main-content {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+@media (max-width: 1024px) {
+    .main-content {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* -------------------------------------------------------------
+ * 4. Surface (Glassmorphism & Shadows)
+ * ------------------------------------------------------------- */
+.glass-panel {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* -------------------------------------------------------------
+ * 5. Visualizer Card (Canvas & Plates)
+ * ------------------------------------------------------------- */
+.visualizer-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    height: 600px;
+}
+
+#polarCanvas {
+    width: 100%;
+    height: 100%;
+    max-height: 460px;
+    cursor: grab;
+}
+
+#polarCanvas:active {
+    cursor: grabbing;
+}
+
+/* Electric Plates (Apple Minimal Style - No flashy borders) */
+.electric-plate {
+    width: 95%;
+    padding: 0.65rem;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: all 0.4s ease;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-tertiary);
+}
+
+.plate-top.active {
+    background: rgba(255, 90, 95, 0.1);
+    border: 1px solid rgba(255, 90, 95, 0.25);
+    color: var(--color-delta-minus);
+}
+
+.plate-bottom.active {
+    background: rgba(0, 229, 255, 0.1);
+    border: 1px solid rgba(0, 229, 255, 0.25);
+    color: var(--color-delta-plus);
+}
+
+.canvas-tip {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+}
+
+/* -------------------------------------------------------------
+ * 6. Controls
+ * ------------------------------------------------------------- */
+.control-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.control-card {
+    padding: 1.75rem;
+}
+
+.control-card h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.control-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+/* Sync Atoms Checkbox styling */
+.sync-control-container {
+    display: flex;
+    align-items: center;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    user-select: none;
+    padding-left: 24px;
+}
+
+.checkbox-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    height: 16px;
+    width: 16px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--card-border);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.checkbox-container:hover input ~ .checkmark {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.checkbox-container input:checked ~ .checkmark {
+    background-color: var(--apple-blue);
+    border-color: var(--apple-blue);
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.checkbox-container .checkmark:after {
+    left: 5px;
+    top: 2px;
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.checkbox-label {
+    margin-left: 4px;
+}
+
+/* Tab Buttons (Apple Marketing Pill System - 980px radius) */
+.tab-buttons {
+    display: flex;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 980px; /* Pill radius */
+    padding: 3px;
+    gap: 2px;
+    margin-top: 1rem;
+    border: 1px solid var(--card-border);
+}
+
+.tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-radius: 980px;
+    padding: 0.6rem 0.8rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.btn-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.btn-desc {
+    font-size: 0.7rem;
+    opacity: 0.6;
+    margin-top: 2px;
+}
+
+/* Sliders */
+.slider-group {
+    margin-top: 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.slider-group.hidden {
+    display: none;
+    opacity: 0;
+    margin-top: 0;
+}
+
+.slider-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+}
+
+.atom-badge {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+}
+
+.badge-b {
+    background: rgba(41, 151, 255, 0.15);
+    color: var(--link-blue);
+}
+
+.badge-a {
+    background: rgba(255, 90, 95, 0.12);
+    color: #ff8589;
+}
+
+.badge-angle {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.electronegativity-value {
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: monospace;
+    color: var(--text-primary);
+}
+
+input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.1);
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ffffff;
+    cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    transition: transform 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+
+.slider-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    margin-top: 0.25rem;
+}
+
+/* Switch Row */
+.switch-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.switch-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    max-width: 70%;
+}
+
+.switch-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* IOS Style Toggle Switch (Apple canonical styling) */
+.switch-container {
+    position: relative;
+    display: inline-block;
+    width: 51px;
+    height: 31px;
+}
+
+.switch-container input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.12);
+    transition: .3s;
+    border-radius: 31px;
+    border: 1px solid var(--card-border);
+}
+
+.switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 27px;
+    width: 27px;
+    left: 1px;
+    bottom: 1px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+}
+
+input:checked + .switch-slider {
+    background-color: #34c759; /* Apple Green */
+}
+
+input:checked + .switch-slider:before {
+    transform: translateX(20px);
+}
+
+/* -------------------------------------------------------------
+ * 7. Results Dashboard
+ * ------------------------------------------------------------- */
+.status-monitor {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: var(--card-border);
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.status-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.status-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.status-val {
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.font-numeric {
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.01em;
+}
+
+.polarity-result {
+    padding: 0.85rem;
+    border-radius: 10px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+    transition: all 0.3s ease;
+}
+
+.polar-nonpolar {
+    background: rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.polar-polar {
+    background: rgba(0, 113, 227, 0.12);
+    color: var(--link-blue);
+    border: 1px solid rgba(0, 113, 227, 0.3);
+}
+
+/* -------------------------------------------------------------
+ * 8. Footer
+ * ------------------------------------------------------------- */
+footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
